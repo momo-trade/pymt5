@@ -1,5 +1,4 @@
 import MetaTrader5 as mt5
-import pprint
 import pandas as pd
 from datetime import datetime, timedelta
 from pytz import timezone
@@ -160,7 +159,7 @@ class API:
         """
 
         position = mt5.positions_get(ticket=ticket)[0]._asdict()
-        side = mt5.ORDER_TYPE_BUY if position['type'] == 1 else mt5.ORDER_TYPE_SELL
+        side = mt5.ORDER_TYPE_SELL if position['type'] == 0 else mt5.ORDER_TYPE_BUY
 
         params = {
             'action': mt5.TRADE_ACTION_DEAL,
@@ -176,8 +175,12 @@ class API:
 
     def close_all_positions(self):
         """Close all positions.
+
+        Returns:
+            list: Close order information
         """
 
+        result = []
         positions = self.get_positions()
         for position in positions:
             ticket = position['ticket']
@@ -193,7 +196,9 @@ class API:
                 'type_filling': mt5.ORDER_FILLING_IOC
             }
             order = mt5.order_send(params)._asdict()
-            print(order)
+            result.append(order)
+
+        return result
 
     def shutdown(self):
         """Close the previously established connection to the MetaTrader5 terminal.
