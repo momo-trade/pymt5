@@ -17,8 +17,29 @@ if __name__ == '__main__':
     symbols = api.get_symbols()
     print(symbols)
 
+    # Tickの取得
+    last_tick = api.get_last_tick()
+    bid = last_tick['bid']
+    ask = last_tick['ask']
+    print(last_tick)
+    print('bid: {}, ask: {}'.format(bid, ask))
+
+    # シンボルに関する詳細情報の取得
+    symbol_info = api.get_symbol_info()
+    print(symbol_info['point'])
+    print(bid - 60 * symbol_info['point'])
+
+    # SL/TPの設定(±6pipsの場合)
+    point = symbol_info['point']
+    buy_sl = bid - 60 * point
+    buy_tp = bid + 60 * point
+
+    sell_sl = ask + 60 * point
+    sell_tp = ask - 60 * point
+
     # 成行で注文
-    api.market_order(lot=0.01, side='sell')
+    api.market_order(lot=0.01, side='sell',
+                     stop_loss=sell_sl, take_profit=sell_tp)
 
     # ポジションを取得
     positions = api.get_positions()
