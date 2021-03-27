@@ -72,6 +72,30 @@ class API:
         result = [s.name for s in symbols]
         return result
 
+    def get_symbol_info(self, symbol=None):
+        """Get data on the specified financial instrument.
+
+        Args:
+            symbol (str, optional): Financial instrument name. Defaults to None.
+
+        Returns:
+            dict: Symbol information
+        """
+        instrument = symbol if symbol else self.symbol
+        return mt5.symbol_info(instrument)._asdict()
+
+    def get_last_tick(self, symbol=None):
+        """Get the last tick for the specified financial instrument.
+
+        Args:
+            symbol (str, optional): Financial instrument name. Defaults to None.
+
+        Returns:
+            dict: [description]
+        """
+        instrument = symbol if symbol else self.symbol
+        return mt5.symbol_info_tick(instrument)._asdict()
+
     def get_candles(self, timeframe, count=100):
         """Get bars from the MetaTrader5 terminal starting from the current one.
 
@@ -188,7 +212,7 @@ class API:
             lot = position['volume']
             params = {
                 'action': mt5.TRADE_ACTION_DEAL,
-                'symbol': symbol,
+                'symbol': self.symbol,
                 'volume': lot,
                 'position': ticket,
                 'type': order_type,
