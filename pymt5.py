@@ -31,14 +31,11 @@ class API:
         'MN1': mt5.TIMEFRAME_MN1,
     }
 
-    def __init__(self, symbol, login=None, password=None, server=None):
-        self.initialize()
+    def __init__(self, symbol, login, password, server):
+        if not mt5.initialize(login=login, password=password, server=server):
+            print('Initialize failed, error code={}'.format(mt5.last_error()))
+            raise Exception
         self.symbol = symbol
-
-    def initialize(self):
-        if not mt5.initialize():
-            print('initialize failed, error code={}'.format(mt5.last_error()))
-            return False
 
     def __calc_offset(self):
         now = datetime.now()
@@ -125,27 +122,43 @@ class API:
 
         return result
 
-    def get_orders(self):
-        return
+    def get_candles_range(self, timeframe, start_date, end_date, symbol=None):
 
-    def get_positions(self):
-        """Get open positions with the ability to filter by symbol
+        instrument = symbol if symbol else self.symbol
+        result = mt5.copy_rates_range(
+            instrument, timeframe, start_date, end_date)
+
+        return result
+
+    def get_orders(self):
+        """Get active order information
 
         Returns:
-            list: [description]
+            list: Active orders
+        """
+        orders = mt5.orders_get(symbol=self.symbol)
+        result = [order._asdict() for order in orders]
+        return result
+
+    def get_positions(self):
+        """Get open position information
+
+        Returns:
+            list: Open positions
         """
         positions = mt5.positions_get(symbol=self.symbol)
         result = [position._asdict() for position in positions]
         return result
 
-    def market_order(self, lot, side, stop_loss=None, take_profit=None):
+    def market_order(self, lot, side, magic=None, stop_loss=None, take_profit=None):
         """Place an order in the market.
 
         Args:
             lot (float): Specify the order size.
             side (str): Specify whether to 'buy' or 'sell'.
-            stop_loss (float, optional): [description]. Defaults to None.
-            take_profit (float, optional): [description]. Defaults to None.
+            magic (int): EA ID. Defaults to None.
+            stop_loss (float, optional): Stop loss order price. Defaults to None.
+            take_profit (float, optional): Take profit order price. Defaults to None.
 
         Returns:
             dict: Order information
@@ -161,16 +174,84 @@ class API:
             'type_time': mt5.ORDER_TIME_GTC,
             'type_filling': mt5.ORDER_FILLING_IOC
         }
+        if magic:
+            params['magic'] = magic
         if stop_loss:
             params['sl'] = stop_loss
         if take_profit:
             params['tp'] = take_profit
 
-        order = mt5.order_send(params)._asdict()
-        return order
+        response = mt5.order_send(params)._asdict()
+        return response
 
-    def limit_order(self):
-        return
+    def limit_order(self, lot, side, price, magic=None, stop_loss=None, take_profit=None):
+        """Place a limit order
+
+        Args:
+            lot (float): Specify the order size.
+            side (str): Specify whether to 'buy' or 'sell'.
+            price (float): Limit order price.
+            magic (int): EA ID. Defaults to None.
+            stop_loss (float, optional): Stop loss order price. Defaults to None.
+            take_profit (float, optional): Take profit order price. Defaults to None.
+
+        Returns:
+            dict: Order information
+        """
+        order_type = mt5.ORDER_TYPE_BUY_LIMIT if side == 'buy' else mt5.ORDER_TYPE_SELL_LIMIT
+
+        params = {
+            'action': mt5.TRADE_ACTION_PENDING,
+            'symbol': self.symbol,
+            'volume': lot,
+            'type': order_type,
+            'price': price,
+            'type_time': mt5.ORDER_TIME_GTC,
+        }
+
+        if magic:
+            params['magic'] = magic
+        if stop_loss:
+            params['sl'] = stop_loss
+        if take_profit:
+            params['tp'] = take_profit
+
+        response = mt5.order_send(params)._asdict()
+        return response
+
+    def cancel_order(self, ticket):
+        """Cancel an active order by specifying the ticket number.
+
+        Args:
+            ticket (int): Ticket number to cancel the order.
+
+        Returns:
+            dict: Order response
+        """
+        params = {
+            'action': mt5.TRADE_ACTION_REMOVE,
+            'order': ticket
+        }
+        response = mt5.order_send(params)._asdict()
+        return response
+
+    def cancel_all_orders(self):
+        """Cancel all active orders.
+
+        Returns:
+            dict: Order response
+        """
+        orders = self.get_orders()
+        result = []
+        for order in orders:
+            ticket = order['ticket']
+            params = {
+                'action': mt5.TRADE_ACTION_REMOVE,
+                'order': ticket
+            }
+            response = mt5.order_send(params)._asdict()
+            result.append(response)
+        return result
 
     def close_position(self, ticket):
         """Close the position of the specified ticket.
@@ -194,8 +275,8 @@ class API:
             'type_time': mt5.ORDER_TIME_GTC,
             'type_filling': mt5.ORDER_FILLING_IOC
         }
-        order = mt5.order_send(params)._asdict()
-        return order
+        response = mt5.order_send(params)._asdict()
+        return response
 
     def close_all_positions(self):
         """Close all positions.
@@ -219,8 +300,8 @@ class API:
                 'type_time': mt5.ORDER_TIME_GTC,
                 'type_filling': mt5.ORDER_FILLING_IOC
             }
-            order = mt5.order_send(params)._asdict()
-            result.append(order)
+            response = mt5.order_send(params)._asdict()
+            result.append(response)
 
         return result
 
